@@ -19,7 +19,7 @@ For installing jq please follow the instructions: https://stedolan.github.io/jq/
 ## Installation
 
 ```
-sudo curl -s https://raw.githubusercontent.com/alphagov/aws-auth/master/aws-auth.sh -o /usr/local/bin/aws-auth
+sudo curl -s https://raw.githubusercontent.com/chrismazanec/aws-auth/master/aws-auth.sh -o /usr/local/bin/aws-auth
 sudo chmod +x /usr/local/bin/aws-auth
 ```
 
@@ -49,8 +49,8 @@ aws_secret_access_key=FYd4t...
 ```
 [profile some-profile-with-role]
 source_profile=some-profile
-mfa_serial=arn:aws:iam::<AWS account id>:mfa/<IAM username>
 role_arn = arn:aws:iam::<AWS account id>:role/<IAM role>
+mfa_serial=arn:aws:iam::<AWS account id>:mfa/<IAM username>
 ```
 
 ## How it works

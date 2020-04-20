@@ -1,22 +1,39 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
+# exit immediately after failed command
+# pipe exit code evaluates all pipe commands
 set -eo pipefail
 
+# aws cli default cache dir
 CACHE_DIR=~/.aws/cli/cache
 
-# Make sure we get or refresh the temporary credentials
+# get or refresh temporary credentials into cache dir
 aws sts get-caller-identity > /dev/null
 
 if [ -n "$AWS_PROFILE" ]; then
+  # get source profile
   source_profile="$(aws configure get source_profile --profile "$AWS_PROFILE" || echo "")"
+
   if [ -n "$source_profile" ]; then
+    # get role arn
     role_arn="$(aws configure get role_arn --profile "$AWS_PROFILE")"
-    mfa_serial="$(aws configure get mfa_serial --profile "$AWS_PROFILE")"
-    cache_file=${CACHE_DIR}/$(echo -n "{\"RoleArn\": \"$role_arn\", \"SerialNumber\": \"$mfa_serial\"}" | openssl dgst -sha1 | cut -d " " -f 2).json
-    AWS_DEFAULT_REGION=$(aws configure get region --profile "$source_profile" || echo "")
-    AWS_ACCESS_KEY_ID="$(cat $cache_file | jq -r ".Credentials.AccessKeyId")"
-    AWS_SECRET_ACCESS_KEY="$(cat $cache_file | jq -r ".Credentials.SecretAccessKey")"
-    AWS_SECURITY_TOKEN="$(cat $cache_file | jq -r ".Credentials.SessionToken")"
+
+    # get mfa serial if configured, set cache file accordingly
+    mfa_serial="$(aws configure get mfa_serial --profile "$AWS_PROFILE" || echo "")"
+    if [ -n "$mfa_serial" ]; then
+        cache_file=${CACHE_DIR}/$(echo -n "{\"RoleArn\": \"$role_arn\", \"SerialNumber\": \"$mfa_serial\"}" | openssl dgst -sha1 | cut -d " " -f 2).json
+    else
+        cache_file=${CACHE_DIR}/$(echo -n "{\"RoleArn\": \"$role_arn\"}" | openssl dgst -sha1 | cut -d " " -f 2).json
+    fi
+
+    # get default aws region
+    AWS_DEFAULT_REGION=$(aws configure get region --profile "$AWS_PROFILE" ||
+                         aws configure get region --profile "$source_profile" ||
+                         echo "")
+
+    AWS_ACCESS_KEY_ID="$(jq -r ".Credentials.AccessKeyId" $cache_file)"
+    AWS_SECRET_ACCESS_KEY="$(jq -r ".Credentials.SecretAccessKey" $cache_file)"
+    AWS_SECURITY_TOKEN="$(jq -r ".Credentials.SessionToken" $cache_file)"
     AWS_SESSION_TOKEN=$AWS_SECURITY_TOKEN
   else
     AWS_DEFAULT_REGION="$(aws configure get region --profile "$AWS_PROFILE" || echo "")"
